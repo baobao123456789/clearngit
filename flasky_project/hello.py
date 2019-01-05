@@ -1,14 +1,16 @@
 import os 
 from datetime import datetime 
 from flask import Flask,render_template,session,redirect,url_for,flash
-from flask_script import Manager 
+from flask_script import Manager,Shell 
 from flask_bootstrap import Bootstrap 
 from flask_moment import Moment 
 from flask_wtf import FlaskForm 
 from wtforms import StringField,SubmitField 
 from wtforms.validators import Required
 from flask_sqlalchemy import SQLAlchemy
-
+from flask_migrate import Migrate,MigrateCommand
+from flask_mail import Mail,Message 
+from flask.ext.mail import Message
 basedir = os.path.abspath(os.path.dirname(__file__)) 
 
 
@@ -18,12 +20,21 @@ app.config['SQLALCHEMY_DATABASE_URI']=\
     'sqlite:///'+os.path.join(basedir,'data.sqlite')
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN']=True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS']=False
-
+app.config['MAIL_SERVER']='smtp.163.com'
+app.config['MAIL_PORT']=25
+app.config['MAIL_USE_TLS']=False
+app.config['MAIL_USERNAME']=os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD']=os.environ.get('MAIL_PASSWORD')
+app.config['FLASKY_MAIL_SUBJECT_PREFIX']=['Flasky']
+app.config['FLASKY_MAIL_SENDER']='Flasky Admin <15010936390@163.com>'
+app.config['FLASKY_ADMIN']=os.environ.get('FLASKY_ADMIN')
 
 manager =Manager(app)
 bootstrap =Bootstrap(app)
 moment =Moment(app)
 db =SQLAlchemy(app)
+migrate = Migrate(app, db)
+mail = Mail(app)
 
 class Role(db.Model):
     __tablename__='roles'
@@ -46,9 +57,11 @@ class User(db.Model):
 class NameForm(FlaskForm):
     name =StringField('what is your name?',validators=[Required()])
     submit=SubmitField('Submit')
-class make_shell_context():
+
+def make_shell_context():
     return dict(app=app,db=db,User=User,Role=Role)
-    manager.add_command('shell',shell(make_context=make_shell_context))
+manager.add_command('shell',Shell(make_context=make_shell_context))
+manager.add_command('db',MigrateCommand)
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'),404
